@@ -1,111 +1,149 @@
-Travel Memory
-Backend Configuration
+# 🌍 **Travel Memory — Full Deployment Guide**
 
-Step 1. Launch EC2 Instance
-AMI (OS):
- Ubuntu (e.g., Ubuntu 22.04 LTS)
-Instance Type:
- t2.micro (Free tier eligible)
-Key Pair:
- Create or select an existing one (.pem file required for SSH access)
-Security Group Configuration:
-Allow SSH (Port 22) – for connecting to the instance via SSH
+A complete step-by-step guide to deploy the **Travel Memory** application — including backend setup, frontend configuration, load balancer, and domain integration using Cloudflare.
 
+---
 
-Allow HTTP (Port 80) – for standard web traffic
+## 🖥️ **Backend Configuration**
 
+### **Step 1 – Launch EC2 Instance**
 
-Allow HTTPS (Port 443) – for secure web traffic (if SSL enabled)
+**AMI (OS):**
 
+* Ubuntu 22.04 LTS
 
-Allow Custom TCP (Port 3001) – required for backend API access
+**Instance Type:**
 
+* t2.micro (Free Tier eligible)
 
-Note:
- If the frontend and backend EC2 instances are within the same VPC but different subnets, you can enhance security by allowing inbound access only from the frontend instance’s private IP on the port where the backend server runs (usually 3000 or 3001).
+**Key Pair:**
 
+* Create or select an existing one (`.pem` file required for SSH access)
 
-Step 2. Connect to the Instance
-After launch, copy the Public IP or Public DNS.
+**Security Group Rules:**
 
-Use terminal:
+| Type       | Port | Purpose                             |
+| ---------- | ---- | ----------------------------------- |
+| SSH        | 22   | For SSH access                      |
+| HTTP       | 80   | Standard web traffic                |
+| HTTPS      | 443  | Secure web traffic (if SSL enabled) |
+| Custom TCP | 3001 | Backend API access                  |
+
+> 💡 *Tip:*
+> If the frontend and backend instances are within the same VPC but in different subnets, restrict inbound access on port 3001 to the frontend instance’s **private IP** for added security.
+
+---
+
+### **Step 2 – Connect to Your EC2 Instance**
+
+Copy the **Public IP** or **Public DNS**, then connect via SSH:
+  
+```bash
 ssh -i your-key.pem ubuntu@<EC2-Public-IP>
+```
+   
+---
 
+### **Step 3 – Update the System**
 
-Now inside our EC2 server (remote Linux computer).
+Keep the OS packages up to date:
 
-
-
-Step 3. Update the System
-Always first update Ubuntu packages:
+```bash
 sudo apt update && sudo apt upgrade -y
+```
 
-This ensures all software dependencies are up to date.
+---
 
-Step 4. Install Required Dependencies
-Depending on our project stack, install the basics:
-Node.js (for backend)
+### **Step 4 – Install Dependencies**
+
+**Node.js**
+
+```bash
 curl -s https://deb.nodesource.com/setup_18.x | sudo bash
 sudo apt install nodejs -y
+```
 
-Git (to clone your repo)
+**Git**
+
+```bash
 sudo apt install git -y
+```
 
-(Optional) Nginx (for reverse proxy)
+**(Optional) Nginx**
+
+```bash
 sudo apt install nginx -y
+```
 
-We can check:
+**Verify**
+
+```bash
 node -v
 npm -v
 git --version
+```
 
+---
 
-Step 5. Clone Our Project Repository
-Move to our home directory:
+### **Step 5 – Clone the Repository**
+
+```bash
 cd /home/ubuntu
-
-Clone our code:
 git clone https://github.com/UnpredictablePrashant/TravelMemory
+```
 
+---
 
-Step 6. Go to Our Project Folder and Install Dependencies
-Example (if our backend is inside a folder):
+### **Step 6 – Install Project Dependencies**
+
+```bash
 cd TravelMemory/backend
 npm install
-This installs all Node.js packages defined in package.json.
+```
 
-# Create .env file
+Create a `.env` file:
+
+```bash
 sudo nano .env
+```
 
+---
 
-Step 7: Configure Environment Variables
-# .env file content
+### **Step 7 – Configure Environment Variables**
+
+```bash
 PORT=3001
 MONGO_URI=mongodb+srv://test:dRpB7CeQ3WHJct4f@cluster0.ofqf3gw.mongodb.net/TravelDb
+```
 
+---
 
+### **Step 8 – Start the Server with PM2**
 
+Install and configure **PM2** for process management:
 
-
-Step 9: PM2 Setup for Process Management
-# Install PM2 globally
+```bash
 sudo npm install -g pm2
-
-# Start backend with PM2
 pm2 start index.js --name "travelmemory-backend"
-
-# Save PM2 configuration
 pm2 save
 pm2 startup
+```
 
+---
 
+## 💻 **Frontend Configuration**
 
+### **Step 1 – Configure Nginx Reverse Proxy**
 
+Edit the configuration file:
 
-
-Frontend Configuration
-Step 1: Configure Nginx Reverse Proxy
+```bash
 sudo nano /etc/nginx/nginx.conf
+```
+
+Paste the following:
+
+```nginx
 user nginx;
 worker_processes auto;
 error_log /var/log/nginx/error.log;
@@ -141,279 +179,200 @@ http {
         }
     }
 }
+```
 
-Note:
-The root path should point to the directory where our frontend build is copied (e.g., /var/www/travelmemory).
+> ⚙️ *Notes:*
+>
+> * `root` → directory where your frontend build is copied (e.g., `/var/www/travelmemory`).
+> * `proxy_pass` → backend’s private or public IP + port (e.g., `http://<backend-ip>:3001`).
 
+---
 
-The proxy_pass should point to our backend private IP and port (e.g., http://<backend-private/public-ip>:3001/).
+### **Step 2 – Start Nginx**
 
-
-If running locally, we can test using http://localhost:3001.
-
-Step 2: Start Nginx
-# Test nginx configuration
+```bash
 sudo nginx -t
-
-# Start nginx
 sudo systemctl start nginx
 sudo systemctl enable nginx
+```
 
+---
 
-Step 3: Build Frontend
+### **Step 3 – Build Frontend**
+
+```bash
 cd ../frontend
-
-# Install dependencies
 npm install
+```
 
-# Update API URLs
+Edit API base URL:
+
+```bash
 sudo nano src/url.js
+```
 
+---
 
+### **Step 4 – Configure API URLs**
 
-Step 4: Configure API URLs
-In the frontend project, all API requests are made using a base URL defined inside the src/url.js file.
-Example:
-export const baseUrl = process.env.REACT_APP_BACKEND_URL || "http://api.shivamassociate.store";
+**Example src/url.js:**
 
-The baseUrl tells the frontend where to send API requests.
- It can vary depending on the environment setup:
-Local Development: http://localhost:3001
- Used when backend runs locally.
-
-
-Private Network (Internal Access): http://<backend-private-ip>:3001
- Used when frontend and backend are within the same VPC or subnet.
-
-
-Production Domain: http://api.shivamassociate.store
- Used when backend is deployed behind a load balancer or DNS domain.
-
-
-When using Nginx Reverse Proxy, we do not expose backend ports (like 3000 or 3001) to the public.
-Instead, Nginx handles API routing internally through a relative path such as /api.
-In this case, update your src/url.js file as:
+```js
 export const baseUrl = process.env.REACT_APP_BACKEND_URL || "/api/";
+```
 
-This way:
-Frontend sends requests to /api/...
+| Environment | baseUrl Example                                                      | Description   |
+| ----------- | -------------------------------------------------------------------- | ------------- |
+| Local       | [http://localhost:3001](http://localhost:3001)                       | Local backend |
+| Internal    | http://<backend-private-ip>:3001                                     | Within VPC    |
+| Production  | [http://api.shivamassociate.store](http://api.shivamassociate.store) | Public domain |
 
+> 🧠 When using Nginx, `/api/` proxies internally to `http://<backend-ip>:3001` keeping backend ports hidden.
 
-Nginx forwards them internally to http://<backend-private-ip>:3001
+---
 
+### **Step 5 – Deploy Frontend**
 
-Backend processes the request and returns the response through the same route
-
-
-This approach keeps backend ports hidden, improves security, and ensures a clean integration between frontend and backend.
-
-
-
-Step 5: Build and Deploy Frontend
-# Build React application
+```bash
 npm run build
-
-# Create deployment directory
 sudo mkdir -p /var/www/travelmemory
 sudo cp -r build/* /var/www/travelmemory/
-
-# Set permissions
 sudo chown -R nginx:nginx /var/www/travelmemory
 sudo chmod -R 755 /var/www/travelmemory
+```
 
+---
 
+## ⚙️ **Load Balancer Setup**
 
+### **Step 1 – Create an Application Load Balancer**
 
+In AWS → EC2 → **Load Balancers** → Create:
 
+| Setting           | Value                            |
+| ----------------- | -------------------------------- |
+| Name              | travel-memory-lb                 |
+| Scheme            | Internet-facing                  |
+| Listeners         | HTTP (80), HTTPS (443)           |
+| IP Type           | IPv4                             |
+| Security Groups   | Use existing SG                  |
+| Target Group      | saurabh-travelmemory-targetgroup |
+| Protocol / Port   | HTTP / 80                        |
+| Health Check Path | `/`                              |
 
+---
 
-Load Balancer Setup
-Step 1: Create Application Load Balancer
-Navigate to EC2 → Load Balancers → Create Load Balancer
-Configure:
-Name: travel-memory-lb
-Scheme: internet-facing
-IP address type: ipv4
-Listeners: HTTP (80) and HTTPS (443)
-Security Groups: Use previously created security group
-Configure Target Groups:
-Name: saurabh-travelmemory-targetgroup
-Target type: instances
-Protocol: HTTP
-Port: 80
-Health check path: /
-Register Targets: Add all EC2 instances
+### **Step 2 – Health Check Configuration**
 
+| Setting             | Value           |
+| ------------------- | --------------- |
+| Protocol            | HTTP            |
+| Port                | 80              |
+| Path                | `/health-check` |
+| Timeout             | 5 s             |
+| Interval            | 30 s            |
+| Unhealthy Threshold | 2               |
+| Healthy Threshold   | 5               |
 
+> ✅ Make sure your backend exposes a `/health-check` endpoint.
 
+---
 
+## 🌐 **Domain Setup with Cloudflare**
 
-Step 2: Configure Health Checks
-# Health check settings
-Protocol: HTTP
-Port: 80
-Path: /health-check (create this endpoint in your backend)
-Timeout: 5 seconds
-Interval: 30 seconds
-Unhealthy threshold: 2
-Healthy threshold: 5
+### **Goal**
 
+Use custom domains (e.g.,
+`www.travelmemory.com` and `api.travelmemory.com`) instead of AWS IPs.
 
+---
 
+### **Step 1 – Add Domain to Cloudflare**
 
+1. Purchase a domain (GoDaddy, Namecheap, Hostinger etc.).
+2. Log in to [Cloudflare Dashboard](https://dash.cloudflare.com).
+3. Click **“Add a site”** → enter your domain (e.g. `travelmemory.com`).
+4. Choose the **Free Plan** → Continue.
+5. Update your domain registrar’s nameservers to Cloudflare’s (e.g. `abby.ns.cloudflare.com`, `nolan.ns.cloudflare.com`).
+6. Wait 5–30 min for DNS propagation.
 
+---
 
+### **Step 2 – Add DNS Records**
 
+| Type      | Name         | Target                | Proxy      | Purpose              |
+| --------- | ------------ | --------------------- | ---------- | -------------------- |
+| **A**     | `@` or `www` | `<EC2 Public IP>`     | 🟠 Proxied | Frontend (React App) |
+| **CNAME** | `api`        | `<Load Balancer DNS>` | ⚪ DNS Only | Backend (Node.js)    |
 
+**Example:**
 
+* A Record → `www` → `13.234.45.78`
+* CNAME Record → `api` → `myapp-lb-155231221.ap-south-1.elb.amazonaws.com`
 
+---
 
+### **Step 3 – Update Frontend Environment**
 
+On your frontend EC2:
 
-
-
-
-
-Domain Setup with Cloudflare
-Goal:
-Make our AWS application accessible using a custom domain (e.g. www.travelmemory.com and api.travelmemory.com) instead of the AWS public IP or load balancer URL.
-
-Step-by-Step Configuration
-
-Step 1: Buy & Add Our Domain to Cloudflare
-Buy a domain from any registrar (GoDaddy, Namecheap, Google Domains, Hostinger, etc.).
- Example:
-
- travelmemory.com
-Go to https://dash.cloudflare.com → Log in.
-
-
-Click “Add a site” → Enter our domain name:
-
- travelmemory.com
- ⚠️ Do NOT enter our EC2 public domain like
- ec2-13-234-45-78.ap-south-1.compute.amazonaws.com
- because Cloudflare only accepts domains we own.
-
-
-
-Choose the Free plan → Continue.
-
-
-Cloudflare will automatically scan for DNS records. We can skip or continue — we’ll add our own records next.
-
-
-Cloudflare shows us two nameservers (for example):
-
-abby.ns.cloudflare.com
-nolan.ns.cloudflare.com
-Go to our domain registrar (where we bought the domain) → open DNS / Nameserver settings → replace the old nameservers with these Cloudflare ones.
-
-
-
-
-Wait 5–30 minutes (sometimes up to 24 hours) for propagation.
- Once verified, our domain will show “Active” in Cloudflare.
-
-
-
-
-Step 2: Add DNS Records in Cloudflare
-Now we connect our domain to AWS infrastructure.
-Go to our domain → DNS → Records tab → click “Add Record”.
-We’ll add two records:
-
-🟢 (A) Frontend (React App on EC2) — A Record
-Type
-Name
-IPv4 Address
-Proxy Status
-A
-@ or www
-<EC2 Public IPv4>
-✅ Proxied (orange cloud)
-
-Example:
-Type: A
-Name: www
-IPv4: 13.234.45.78
-Proxy: OF(GREY cloud)
-
-This makes  http://shivamassociate.store  point to our frontend hosted on EC2 (with Nginx serving /var/www/travelmemory/frontend/build).
-
-🟣 (B) Backend (Node.js via Load Balancer) — CNAME Record
-Type
-Name
-Target
-Proxy Status
-CNAME
-api
-<Load Balancer DNS>
-DNS Only (gray cloud)
-
-Example:
-Type: CNAME
-Name: api
-Target: myapp-lb-155231221.ap-south-1.elb.amazonaws.com
-Proxy: OFF
-
-This connects api.travelmemory.com → AWS Load Balancer → our backend instances.
-
-
-
-
-Step 4: Update Frontend Environment
-If your React app calls APIs, update your .env file (on EC2):
+```bash
 REACT_APP_API_URL=https://api.shivamassociate.store
+```
 
-Then rebuild your frontend and restart Nginx:
+Then rebuild and restart Nginx:
+
+```bash
 npm run build
 sudo systemctl restart nginx
+```
 
+---
 
+### **Step 4 – Testing**
 
+| Test                                      | Expected Result                    |
+| ----------------------------------------- | ---------------------------------- |
+| `http://shivamassociate.store`            | Loads React Frontend               |
+| `http://api.shivamassociate.store/health` | Backend responds via Load Balancer |
 
- Step 5: Test the Setup
-Now verify:
-Test
-Expected Result
-Visit http://shivamassociate.store
-Loads our frontend React app
-Visit http://api.shivamassociate.store/health
-Hits our Node.js backend (via Load Balancer)
+ <img width="1280" height="800" alt="Screenshot 2025-10-24 at 10 38 30 AM" src="https://github.com/user-attachments/assets/38dee53d-66cb-47be-b041-b841350c8baf" />
 
+  <img width="1280" height="800" alt="Screenshot 2025-10-24 at 10 39 12 AM" src="https://github.com/user-attachments/assets/0adcfaa1-7da5-487a-acc2-c47869c080f3" />
 
+  <img width="1280" height="800" alt="Screenshot 2025-10-24 at 10 39 30 AM" src="https://github.com/user-attachments/assets/7f23d36f-620c-4509-96cc-7b72b4587580" />
 
+  <img width="1280" height="800" alt="Screenshot 2025-10-24 at 10 39 38 AM" src="https://github.com/user-attachments/assets/c4e85695-3139-4582-9b33-c047b79cd474" />
 
+---
 
+## 🧭 **Visual Overview**
 
-🧭 Visual Overview
+```
 [ User Browser ]
        ↓
    Cloudflare (DNS)
        ↓
- |────────────|
- |  A Record  |   CNAME       
- | (Frontend) | (Backend)     |
- ↓            ↓
-EC2 (IP)   AWS Load Balancer
-                 ↓
-           EC2 Backend Instances
+ ┌────────────┬──────────────┐
+ │  A Record  │   CNAME      │
+ │ (Frontend) │ (Backend)    │
+ └──────┬─────┴──────┬───────┘
+        ↓             ↓
+     EC2 (Frontend)   AWS Load Balancer
+                          ↓
+                  EC2 Backend Instances
+```
 
+---
 
+### ✅ **Deployment Completed**
 
+You now have:
 
+* Backend running on EC2 + PM2
+* Frontend served via Nginx
+* Application Load Balancer for scaling
+* Cloudflare DNS for clean domains
 
-
-
-
-
-
-
-
-
-
-
-
-
+---
 
