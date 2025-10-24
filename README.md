@@ -4,6 +4,17 @@ A complete step-by-step guide to deploy the **Travel Memory** application — in
 
 ---
 
+## 📥 Clone Project via HTTP
+
+Clone the repository to your local machine using HTTPS:
+
+```bash
+git clone https://github.com/onlysaurav/Travel-Memory-doc.git
+
+```
+---
+
+
 ## 🖥️ **Backend Configuration**
 
 ### **Step 1 – Launch EC2 Instance**
